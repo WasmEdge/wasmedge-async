@@ -1,0 +1,21 @@
+[package]
+name = "wasmedge_async"
+version = "0.0.1"
+authors = [ "Heng <mediosrity@gmail.com>" ]
+edition = "2021"
+license = "Apache-2.0"
+description = "Async runtime based on the WasmEdge Runtime for WebAssembly."
+repository = "https://github.com/WasmEdge/wasmedge-async"
+readme = "README.md"
+categories = ["async-programming"]
+keywords = ["async", "webassembly", "wasmedge"]
+
+[lib]
+name = "wasmedge_async"
+path = "src/lib.rs"
+
+[dependencies]
+futures = "0.3.21"
+tokio = { version = "1.18.1", features = ["io-util"] }
+scoped-tls = "1.0.0"
+wasmedge_wasi_socket = { git= "https://github.com/second-state/wasmedge_wasi_socket" }

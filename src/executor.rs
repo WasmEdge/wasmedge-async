@@ -21,7 +21,7 @@ impl Poller {
         self.subs.insert(
             fd,
             Subscription::IO {
-                userdata: 0,
+                userdata: fd as u64,
                 fd: fd,
                 read_event: true,
                 write_event: true,

@@ -1,4 +1,5 @@
 use crate::{Interest, EXECUTOR};
+use futures::Stream;
 use std::io;
 use std::os::wasi::io::AsRawFd;
 use std::pin::Pin;
@@ -13,17 +14,44 @@ pub struct TcpListener {
 }
 
 impl TcpListener {
-    pub async fn bind<A: ToSocketAddrs>(addrs: A, nonblocking: bool) -> io::Result<TcpListener> {
+    pub fn bind<A: ToSocketAddrs>(addrs: A, nonblocking: bool) -> io::Result<TcpListener> {
         match WasiTcpListener::bind(addrs, nonblocking) {
-            Ok(inner) => Ok(TcpListener { inner }),
+            Ok(inner) => {
+                EXECUTOR.with(|ex| {
+                    ex.reactor.borrow_mut().add(inner.as_raw_fd()).unwrap();
+                });
+                Ok(TcpListener { inner })
+            }
             Err(error) => Err(error),
         }
     }
 
-    pub async fn accept(&self, nonblocking: bool) -> io::Result<(TcpStream, SocketAddr)> {
+    pub fn accept(&self, nonblocking: bool) -> io::Result<(TcpStream, SocketAddr)> {
         match self.inner.accept(nonblocking) {
             Ok((stream, addr)) => Ok((TcpStream { inner: stream }, addr)),
             Err(error) => Err(error),
+        }
+    }
+}
+
+impl Stream for TcpListener {
+    type Item = std::io::Result<(TcpStream, SocketAddr)>;
+
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        match self.inner.accept(true) {
+            Ok((stream, addr)) => Poll::Ready(Some(Ok((TcpStream { inner: stream }, addr)))),
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                EXECUTOR.with(|ex| {
+                    ex.reactor
+                        .borrow_mut()
+                        .modify(self.inner.as_raw_fd(), Interest::Read, cx)
+                });
+                Poll::Pending
+            }
+            Err(e) => std::task::Poll::Ready(Some(Err(e))),
         }
     }
 }
@@ -33,7 +61,7 @@ pub struct TcpStream {
 }
 
 impl TcpStream {
-    pub async fn connect<A: ToSocketAddrs>(addrs: A) -> io::Result<TcpStream> {
+    pub fn connect<A: ToSocketAddrs>(addrs: A) -> io::Result<TcpStream> {
         let inner = WasiTcpStream::connect(addrs)?;
         inner.set_nonblocking(true)?;
         EXECUTOR.with(|ex| {

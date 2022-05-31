@@ -1,11 +1,11 @@
 use std::io;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use wasmedge_async::{spawn, Executor, TcpStream, TcpListener};
+use wasmedge_async::{spawn, Executor, TcpStream};
 
 async fn stream_test() -> io::Result<()> {
     let port = std::env::var("PORT").unwrap_or("1235".to_string());
     println!("Connect to 127.0.0.1:{}", port);
-    let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port)).await?;
+    let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port))?;
     // send the message, remember to add '\n'
     stream.write_all(b"hello world\n").await?;
     stream.flush().await?;

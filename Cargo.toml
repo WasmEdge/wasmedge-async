@@ -16,6 +16,7 @@ path = "src/lib.rs"
 
 [dependencies]
 futures = "0.3.21"
-tokio = { version = "1.18.1", features = ["io-util"] }
 scoped-tls = "1.0.0"
 wasmedge_wasi_socket = { git= "https://github.com/second-state/wasmedge_wasi_socket" }
+bytes = "1.1.0"
+pin-project-lite = "0.2.0"

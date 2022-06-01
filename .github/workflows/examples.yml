@@ -29,18 +29,7 @@ jobs:
       run: |
         VERSION=0.10.0-alpha.1
         curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | sudo bash -s -- -e all --version=$VERSION --tf-version=$VERSION --tf-deps-version=$VERSION --tf-tools-version=$VERSION --image-version=$VERSION --image-deps-version=$VERSION  -p /usr/local
-
-    - name: TCP async client example
-      run: |
-        cd examples/async_tcp_stream/
-        cargo build --target wasm32-wasi --release
-        nohup python3 ./server.py &
-        echo $! > pyserver.pid
-        sleep 5
-        wasmedge target/wasm32-wasi/release/async_tcp_stream.wasm
-        kill -9 `cat pyserver.pid`
-        rm pyserver.pid
-
+    
     - name: TCP async server example
       run: |
         cd examples/async_tcp_server/
@@ -52,3 +41,17 @@ jobs:
         echo "Server response is $resp"
         kill -9 `cat wasmedge.pid`
         rm wasmedge.pid
+        sleep 5
+    
+    - name: TCP async client example
+      run: |
+        cd examples/async_tcp_stream/
+        cargo build --target wasm32-wasi --release
+        nohup python3 ./server.py &
+        echo $! > pyserver.pid
+        sleep 5
+        wasmedge target/wasm32-wasi/release/async_tcp_stream.wasm
+        kill -9 `cat pyserver.pid`
+        rm pyserver.pid
+
+    

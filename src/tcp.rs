@@ -1,10 +1,10 @@
+use crate::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::{Interest, EXECUTOR};
 use futures::Stream;
 use std::io;
 use std::os::wasi::io::AsRawFd;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use wasmedge_wasi_socket::TcpListener as WasiTcpListener;
 use wasmedge_wasi_socket::TcpStream as WasiTcpStream;
 use wasmedge_wasi_socket::{Shutdown, SocketAddr, ToSocketAddrs};

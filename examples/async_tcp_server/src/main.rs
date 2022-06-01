@@ -1,7 +1,6 @@
 use futures::StreamExt;
 use std::io;
-use tokio::io::{AsyncWriteExt};
-use wasmedge_async::{spawn, Executor, TcpListener};
+use wasmedge_async::{spawn, AsyncWriteExt, Executor, TcpListener};
 
 async fn listener_test() -> io::Result<()> {
     let port = std::env::var("PORT").unwrap_or("1235".to_string());
@@ -11,7 +10,9 @@ async fn listener_test() -> io::Result<()> {
         if let Ok((mut stream, addr)) = ret {
             println!("Accept a new connection from {} successfully", addr);
             let f = async move {
-                stream.write_all(b"hello").await.unwrap();
+                if stream.write(b"hello").await.is_err() {
+                    return;
+                }
             };
             spawn(f);
         }

@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 wasmedge_async = {path = "../.."}
-tokio = {version = "1.18.1", features=["io-util"]}

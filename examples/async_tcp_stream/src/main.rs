@@ -1,19 +1,18 @@
 use std::io;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use wasmedge_async::{spawn, Executor, TcpStream};
+use wasmedge_async::{spawn, Executor, TcpStream, AsyncReadExt, AsyncWriteExt};
 
 async fn stream_test() -> io::Result<()> {
     let port = std::env::var("PORT").unwrap_or("1235".to_string());
     println!("Connect to 127.0.0.1:{}", port);
     let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port))?;
     // send the message, remember to add '\n'
-    stream.write_all(b"hello world\n").await?;
+    stream.write(b"hello world\n").await?;
     stream.flush().await?;
     println!("Flush.");
-    let mut response = String::new();
-    let length = stream.read_to_string(&mut response).await?;
-    println!("receive: {length}\n{response}");
-    assert_eq!(response, "Hello UDP Client! I received a message from you!");
+    let mut response = [0 as u8;48];
+    let length = stream.read(&mut response).await?;
+    assert_eq!(length, 48);
+    assert_eq!(&response, "Hello TCP Client! I received a message from you!".as_bytes());
     Ok(())
 }
 

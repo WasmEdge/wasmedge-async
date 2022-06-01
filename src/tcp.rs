@@ -141,6 +141,12 @@ impl TcpStream {
     }
 }
 
+impl Drop for TcpStream {
+    fn drop(&mut self) {
+        EXECUTOR.with(|ex| ex.reactor.borrow_mut().delete(self.inner.as_raw_fd()));
+    }
+}
+
 impl AsyncRead for TcpStream {
     fn poll_read(
         self: Pin<&mut Self>,

@@ -37,7 +37,7 @@ jobs:
         nohup wasmedge target/wasm32-wasi/release/async_tcp_server.wasm &
         echo $! > wasmedge.pid
         sleep 5
-        resp=$(curl --http0.9 -X POST http://127.0.0.1:1235 -d "name=WasmEdge")
+        resp=$(curl --parallel --parallel-immediate --parallel-max 3 --http0.9 127.0.0.1:1235 127.0.0.1:1235 127.0.0.1:1235)
         echo "Server response is $resp"
         kill -9 `cat wasmedge.pid`
         rm wasmedge.pid
@@ -45,13 +45,17 @@ jobs:
     
     - name: TCP async client example
       run: |
-        cd examples/async_tcp_stream/
+        cd examples/async_tcp_server/
         cargo build --target wasm32-wasi --release
-        nohup python3 ./server.py &
-        echo $! > pyserver.pid
+        nohup wasmedge target/wasm32-wasi/release/async_tcp_server.wasm &
+        echo $! > wasmedge.pid
         sleep 5
+        cd ../async_tcp_stream/
+        cargo build --target wasm32-wasi --release
         wasmedge target/wasm32-wasi/release/async_tcp_stream.wasm
-        kill -9 `cat pyserver.pid`
-        rm pyserver.pid
-
+        cd ../async_tcp_server/
+        kill -9 `cat wasmedge.pid`
+        rm wasmedge.pid
+        rm nohup.out
+        sleep 5
     

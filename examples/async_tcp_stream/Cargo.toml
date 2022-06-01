@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 wasmedge_async = {path = "../.."}
+futures = "0.3.21"

@@ -1,5 +1,6 @@
 use std::io;
 use wasmedge_async::{spawn, Executor, TcpStream, AsyncReadExt, AsyncWriteExt};
+use futures::future::join_all;
 
 async fn stream_test() -> io::Result<()> {
     let port = std::env::var("PORT").unwrap_or("1235".to_string());
@@ -9,10 +10,11 @@ async fn stream_test() -> io::Result<()> {
     stream.write(b"hello world\n").await?;
     stream.flush().await?;
     println!("Flush.");
-    let mut response = [0 as u8;48];
+    let mut response = [0 as u8;5];
     let length = stream.read(&mut response).await?;
-    assert_eq!(length, 48);
-    assert_eq!(&response, "Hello TCP Client! I received a message from you!".as_bytes());
+    assert_eq!(length, 5);
+    assert_eq!(&response, "hello".as_bytes());
+    println!("Get response");
     Ok(())
 }
 
@@ -23,7 +25,7 @@ fn main() -> io::Result<()> {
         spawn(async {
             println!("Dummy task!");
         });
-        stream_test().await?;
+        join_all(vec![stream_test(), stream_test(), stream_test()]).await;
         println!("Finish request!");
         Ok(())
     }

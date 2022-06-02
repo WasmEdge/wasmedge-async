@@ -18,7 +18,7 @@ impl TcpListener {
         match WasiTcpListener::bind(addrs, nonblocking) {
             Ok(inner) => {
                 EXECUTOR.with(|ex| {
-                    ex.reactor.borrow_mut().add(inner.as_raw_fd()).unwrap();
+                    ex.reactor.borrow_mut().add(inner.as_raw_fd());
                 });
                 Ok(TcpListener { inner })
             }
@@ -65,12 +65,12 @@ impl TcpStream {
         let inner = WasiTcpStream::connect(addrs)?;
         inner.set_nonblocking(true)?;
         EXECUTOR.with(|ex| {
-            ex.reactor.borrow_mut().add(inner.as_raw_fd()).unwrap();
+            ex.reactor.borrow_mut().add(inner.as_raw_fd());
         });
         Ok(Self { inner })
     }
 
-    pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
+    fn shutdown(&self, how: Shutdown) -> io::Result<()> {
         self.inner.shutdown(how)
     }
 
@@ -91,7 +91,7 @@ impl TcpStream {
     fn poll_write_priv(&mut self, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         let this = self;
         match std::io::Write::write(&mut this.inner, buf) {
-            Ok(ret) => return Poll::Ready(Ok(ret)),
+            Ok(ret) => Poll::Ready(Ok(ret)),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 EXECUTOR.with(|ex| {
                     ex.reactor
@@ -115,7 +115,7 @@ impl TcpStream {
                 &mut *(buf.unfilled_mut() as *mut [std::mem::MaybeUninit<u8>] as *mut [u8])
             };
             match std::io::Read::read(&mut this.inner, b) {
-                Ok(ret) => return Poll::Ready(Ok(ret)),
+                Ok(ret) => Poll::Ready(Ok(ret)),
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                     EXECUTOR.with(|ex| {
                         ex.reactor

@@ -1,6 +1,6 @@
-use std::io;
-use wasmedge_async::{spawn, Executor, TcpStream, AsyncReadExt, AsyncWriteExt};
 use futures::future::join_all;
+use std::io;
+use wasmedge_async::{spawn, AsyncReadExt, AsyncWriteExt, Executor, TcpStream};
 
 async fn stream_test() -> io::Result<()> {
     let port = std::env::var("PORT").unwrap_or("1235".to_string());
@@ -8,9 +8,7 @@ async fn stream_test() -> io::Result<()> {
     let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port))?;
     // send the message, remember to add '\n'
     stream.write(b"hello world\n").await?;
-    stream.flush().await?;
-    println!("Flush.");
-    let mut response = [0 as u8;5];
+    let mut response = [0 as u8; 5];
     let length = stream.read(&mut response).await?;
     assert_eq!(length, 5);
     assert_eq!(&response, "hello".as_bytes());
@@ -25,10 +23,21 @@ fn main() -> io::Result<()> {
         spawn(async {
             println!("Dummy task!");
         });
-        join_all(vec![stream_test(), stream_test(), stream_test()]).await;
+        let results = join_all(vec![
+            stream_test(),
+            stream_test(),
+            stream_test(),
+            stream_test(),
+            stream_test(),
+            stream_test(),
+        ])
+        .await;
+        for res in results {
+            res?;
+        }
         println!("Finish request!");
         Ok(())
     }
-    executor.block_on(connect)?;
+    executor.block_on(connect)??;
     Ok(())
 }

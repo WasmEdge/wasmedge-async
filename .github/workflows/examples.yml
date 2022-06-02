@@ -56,6 +56,5 @@ jobs:
         cd ../async_tcp_server/
         kill -9 `cat wasmedge.pid`
         rm wasmedge.pid
-        rm nohup.out
         sleep 5
     

@@ -3,7 +3,6 @@ use futures::task::{self, ArcWake, Waker};
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::future::Future;
-use std::io;
 use std::os::wasi::prelude::RawFd;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -55,7 +54,7 @@ impl Poller {
             };
         });
     }
-    fn poll(&self) -> Vec<Event> {
+    fn poll(&self) -> std::io::Result<Vec<Event>> {
         poll(
             &(self
                 .subs
@@ -63,7 +62,6 @@ impl Poller {
                 .into_values()
                 .collect::<Vec<Subscription>>()),
         )
-        .unwrap()
     }
 }
 
@@ -123,22 +121,31 @@ impl Reactor {
             wakers_map: HashMap::new(),
         }
     }
-    pub fn wait(&mut self) {
-        let events = self.poll.poll();
+    pub fn wait(&mut self) -> std::io::Result<()> {
+        let events = self.poll.poll()?;
         for event in events {
             let token = event.userdata;
             let waker = match event.event_type {
                 EventType::Read => self.wakers_map.remove(&(token * 2)),
                 EventType::Write => self.wakers_map.remove(&(token * 2 + 1)),
-                _ => None,
+                EventType::Timeout => None,
+                EventType::Error(e) => {
+                    return Err(e);
+                }
+            };
+            if let Some(waker) = waker {
+                waker.wake();
+            } else {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    "Timeout is not suuported",
+                ));
             }
-            .unwrap();
-            waker.wake();
         }
-    }
-    pub fn add(&mut self, fd: RawFd) -> io::Result<()> {
-        self.poll.add(fd);
         Ok(())
+    }
+    pub fn add(&mut self, fd: RawFd) {
+        self.poll.add(fd);
     }
 
     pub fn delete(&mut self, fd: RawFd) {
@@ -191,7 +198,7 @@ impl Executor {
         }
     }
 
-    pub fn block_on<F, T, O>(&mut self, f: F) -> O
+    pub fn block_on<F, T, O>(&mut self, f: F) -> std::io::Result<O>
     where
         F: Fn() -> T,
         T: Future<Output = O> + 'static,
@@ -201,28 +208,28 @@ impl Executor {
         EXECUTOR.set(self, || {
             let mut fut = f();
             let mut fut = unsafe { Pin::new_unchecked(&mut fut) };
-            loop {
-                // return if the outer future is ready
+            let ret = loop {
                 if let std::task::Poll::Ready(t) = fut.as_mut().poll(&mut cx) {
                     break t;
                 }
-
-                // consume all tasks
                 while let Some(t) = self.tasks.pop() {
-                    let future = t.future.try_lock().unwrap();
-                    let w = task::waker(t.clone());
-                    let mut context = Context::from_waker(&w);
-                    let _ = Pin::new(future).as_mut().poll(&mut context);
+                    if let Some(future) = t.future.try_lock() {
+                        let w = task::waker(t.clone());
+                        let mut context = Context::from_waker(&w);
+                        let _ = Pin::new(future).as_mut().poll(&mut context);
+                    } else {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            "Cannot lock",
+                        ));
+                    }
                 }
 
-                // no task to execute now, it may ready
-                if let std::task::Poll::Ready(t) = fut.as_mut().poll(&mut cx) {
-                    break t;
-                }
-
-                // block for io
-                self.reactor.borrow_mut().wait();
-            }
+                if let Err(e) = self.reactor.borrow_mut().wait() {
+                    return Err(e);
+                };
+            };
+            Ok(ret)
         })
     }
 }

@@ -1,6 +1,6 @@
 use futures::StreamExt;
 use std::io;
-use wasmedge_async::{spawn, AsyncWriteExt, Executor, TcpListener};
+use wasmedge_async::{spawn, AsyncWriteExt, Executor, TcpListener, AsyncReadExt};
 
 async fn listener_test() -> io::Result<()> {
     let port = std::env::var("PORT").unwrap_or("1235".to_string());
@@ -10,9 +10,10 @@ async fn listener_test() -> io::Result<()> {
         if let Ok((mut stream, addr)) = ret {
             println!("Accept a new connection from {} successfully", addr);
             let f = async move {
-                if stream.write(b"hello").await.is_err() {
-                    return;
-                }
+                let mut response = [0 as u8;11];
+                let _ = stream.read(&mut response).await.unwrap();
+                println!("Get response: {}", std::str::from_utf8(&response).unwrap());
+                stream.write(b"hello").await.unwrap();
             };
             spawn(f);
         }
@@ -22,14 +23,6 @@ async fn listener_test() -> io::Result<()> {
 
 fn main() -> io::Result<()> {
     let mut executor = Executor::new();
-    async fn listen() -> io::Result<()> {
-        println!("Before listening ...");
-        spawn(async {
-            println!("Dummy task!");
-        });
-        listener_test().await?;
-        Ok(())
-    }
-    executor.block_on(listen)?;
+    executor.block_on(listener_test)??;
     Ok(())
 }

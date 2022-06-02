@@ -1,0 +1,22 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: setup Rust toolchain
+      run: |
+        curl https://sh.rustup.rs -sSf | sh -s -- -y
+        export PATH="$HOME/.cargo/bin:$PATH"
+        rustup target add wasm32-wasi
+    - name: build
+      run: |
+        export PATH="$HOME/.cargo/bin:$PATH"
+        cargo build
